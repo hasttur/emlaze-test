@@ -1,14 +1,16 @@
-<script setup lang="ts">
-
+<script lang="ts" setup>
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Button from "primevue/button";
 import ConfirmDialog from 'primevue/confirmdialog';
 import Toast from 'primevue/toast';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
 import {useConfirm} from "primevue/useconfirm";
 import {useToast} from "primevue/usetoast";
 import axios from 'axios';
 import {ref, watch} from 'vue';
+import {FilterMatchMode, FilterOperator} from '@primevue/core/api';
 
 interface Product {
     id: number;
@@ -20,6 +22,18 @@ interface Product {
     total: number;
 }
 
+const filters = ref();
+const initFilters = () => {
+    filters.value = {
+        global: {value: null, matchMode: FilterMatchMode.CONTAINS},
+        sku: {operator: FilterOperator.AND, constraints: [{value: null, matchMode: FilterMatchMode.STARTS_WITH}]},
+        name: {operator: FilterOperator.AND, constraints: [{value: null, matchMode: FilterMatchMode.STARTS_WITH}]},
+        price: {operator: FilterOperator.AND, constraints: [{value: null, matchMode: FilterMatchMode.EQUALS}]},
+    };
+};
+
+initFilters();
+
 const props = defineProps<{
     products: Product[];
 }>();
@@ -29,6 +43,8 @@ const products = ref<Product[]>([...props.products]);
 watch(() => props.products, (newProducts) => {
     products.value = [...newProducts];
 });
+
+const loading = ref(false);
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -66,9 +82,13 @@ const confirmDelete = (id: number) => {
             }
         },
         reject: () => {
-            toast.add({severity: 'error', summary: 'Cancelado', detail: 'Se canceló la acción.', life: 3000});
+            toast.add({severity: 'info', summary: 'Cancelado', detail: 'Se canceló la acción.', life: 3000});
         }
     });
+};
+
+const clearFilter = () => {
+    initFilters();
 };
 
 function formatCurrency(value: number): string {
@@ -82,46 +102,80 @@ function formatCurrency(value: number): string {
 
 <template>
     <Toast/>
+    <ConfirmDialog/>
+
     <div class="py-12">
         <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
-            <div
-                class="overflow-hidden bg-white shadow-sm sm:rounded-lg"
-            >
+            <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    <DataTable :value="products"
-                               paginator
-                               removableSort
-                               stripedRows
-                               :rows="10"
-                               :rowsPerPageOptions="[10, 20, 50]"
-                               scrollable scrollHeight="700px"
+                    <DataTable
+                        v-model:filters="filters"
+                        :globalFilterFields="['sku', 'name', 'price']"
+                        :loading="loading"
+                        :rows="10"
+                        :rowsPerPageOptions="[10, 20, 50]"
+                        :value="products"
+                        currentPageReportTemplate="{first} al {last} de {totalRecords}"
+                        filterDisplay="menu"
+                        paginator
+                        paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink RowsPerPageDropdown"
+                        removableSort
+                        scrollHeight="700px"
+                        scrollable
+                        stripedRows
                     >
                         <template #header>
                             <div class="flex items-center justify-between mb-3">
-                                <span class="text-xl font-bold">Lista de productos</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xl font-bold">Lista de productos</span>
+                                    <Button
+                                        class="p-button-sm p-button-secondary"
+                                        icon="pi pi-filter-slash"
+                                        label="Limpiar filtros"
+                                        @click="clearFilter()"
+                                    />
+                                </div>
 
                                 <Button
-                                    label="Crear producto"
-                                    icon="pi pi-plus"
                                     class="p-button-sm p-button-success"
+                                    icon="pi pi-plus"
+                                    label="Crear producto"
                                 />
                             </div>
+
                         </template>
-                        <Column sortable field="sku" header="SKU"/>
-                        <Column sortable field="name" header="Nombre"/>
-                        <Column sortable field="quantity" header="Cantidad"/>
-                        <Column sortable
-                                field="price"
-                                header="Precio"
-                        >
-                            <template #body="slotProps">
-                                {{ formatCurrency(slotProps.data.price) }}
+
+                        <template #empty>No se encontraron productos.</template>
+                        <template #loading>Cargando... Por favor espere.</template>
+
+                        <Column field="sku" header="SKU" sortable>
+                            <template #body="{ data }">
+                                {{ data.sku }}
+                            </template>
+                            <template #filter="{ filterModel }">
+                                <InputText v-model="filterModel.value" placeholder="Buscar por SKU" type="text"/>
                             </template>
                         </Column>
-                        <Column sortable
-                                field="total"
-                                header="Total"
-                        >
+                        <Column field="name" header="Nombre" sortable>
+                            <template #body="{ data }">
+                                {{ data.name }}
+                            </template>
+                            <template #filter="{ filterModel }">
+                                <InputText v-model="filterModel.value" placeholder="Buscar por Nombre" type="text"/>
+                            </template>
+                        </Column>
+                        <Column field="quantity" header="Cantidad" sortable/>
+                        <Column field="price" header="Precio" dataType="numeric" sortable>
+                            <template #body="{ data }">
+                                {{ formatCurrency(data.price) }}
+                            </template>
+
+                            <template #filter="{ filterModel }">
+                                <InputNumber v-model="filterModel.value" mode="currency" currency="COP" locale="es-CO" />
+                            </template>
+                        </Column>
+
+                        <Column field="total" header="Total" sortable>
                             <template #body="slotProps">
                                 {{ formatCurrency(slotProps.data.total) }}
                             </template>
@@ -132,12 +186,17 @@ function formatCurrency(value: number): string {
                             </template>
                             <template #body="slotProps">
                                 <div class="flex justify-center items-center gap-2">
-                                    <Button raised rounded icon="pi pi-eye" severity="secondary" variant="text"
-                                            size="small" aria-label="Ver"/>
-                                    <Button raised rounded icon="pi pi-pencil" severity="info" variant="text"
-                                            size="small" aria-label="Editar"/>
-                                    <Button raised rounded icon="pi pi-times" severity="danger" variant="text"
-                                            size="small" aria-label="Eliminar"
+                                    <Button aria-label="Ver" icon="pi pi-eye" raised rounded severity="secondary"
+                                            size="small" variant="text"/>
+                                    <Button aria-label="Editar" icon="pi pi-pencil" raised rounded severity="info"
+                                            size="small" variant="text"/>
+                                    <Button aria-label="Eliminar"
+                                            icon="pi pi-times"
+                                            raised
+                                            rounded
+                                            severity="danger"
+                                            size="small"
+                                            variant="text"
                                             @click="confirmDelete(slotProps.data.id)"
                                     />
                                 </div>
@@ -148,6 +207,4 @@ function formatCurrency(value: number): string {
             </div>
         </div>
     </div>
-
-    <ConfirmDialog></ConfirmDialog>
 </template>

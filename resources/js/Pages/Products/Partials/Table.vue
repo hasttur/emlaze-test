@@ -22,6 +22,8 @@ interface Product {
     total: number;
 }
 
+const emit = defineEmits(['create-form', 'show-form', 'edit-form']);
+
 const filters = ref();
 const initFilters = () => {
     filters.value = {
@@ -140,11 +142,10 @@ function formatCurrency(value: number): string {
                                     class="p-button-sm p-button-success"
                                     icon="pi pi-plus"
                                     label="Crear producto"
+                                    @click="emit('create-form')"
                                 />
                             </div>
-
                         </template>
-
                         <template #empty>No se encontraron productos.</template>
                         <template #loading>Cargando... Por favor espere.</template>
 
@@ -165,13 +166,13 @@ function formatCurrency(value: number): string {
                             </template>
                         </Column>
                         <Column field="quantity" header="Cantidad" sortable/>
-                        <Column field="price" header="Precio" dataType="numeric" sortable>
+                        <Column dataType="numeric" field="price" header="Precio" sortable>
                             <template #body="{ data }">
                                 {{ formatCurrency(data.price) }}
                             </template>
 
                             <template #filter="{ filterModel }">
-                                <InputNumber v-model="filterModel.value" mode="currency" currency="COP" locale="es-CO" />
+                                <InputNumber v-model="filterModel.value" currency="COP" locale="es-CO" mode="currency"/>
                             </template>
                         </Column>
 
@@ -182,14 +183,16 @@ function formatCurrency(value: number): string {
                         </Column>
                         <Column field="actions">
                             <template #header>
-                                <span class="text-center">Acciones</span>
+                                <div class="text-center font-bold w-full">
+                                    Acciones
+                                </div>
                             </template>
                             <template #body="slotProps">
                                 <div class="flex justify-center items-center gap-2">
                                     <Button aria-label="Ver" icon="pi pi-eye" raised rounded severity="secondary"
-                                            size="small" variant="text"/>
+                                            size="small" variant="text" @click="emit('show-form', slotProps.data)"/>
                                     <Button aria-label="Editar" icon="pi pi-pencil" raised rounded severity="info"
-                                            size="small" variant="text"/>
+                                            size="small" variant="text" @click="emit('edit-form', slotProps.data)"/>
                                     <Button aria-label="Eliminar"
                                             icon="pi pi-times"
                                             raised

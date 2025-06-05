@@ -23,14 +23,6 @@ class ProductController extends Controller
     }
 
     /**
-     * Mostrar formulario de creación.
-     */
-    public function create(): Response
-    {
-        return Inertia::render('Products/Create');
-    }
-
-    /**
      * Guardar un producto nuevo.
      */
     public function store(StoreProductRequest $request)
@@ -40,27 +32,7 @@ class ProductController extends Controller
 
         Product::create($data);
 
-        return redirect()->route('products.index')->with('success', 'Producto creado exitosamente.');
-    }
-
-    /**
-     * Ver detalles de un producto (opcional).
-     */
-    public function show(Product $product): Response
-    {
-        return Inertia::render('Products/Show', [
-            'product' => $product,
-        ]);
-    }
-
-    /**
-     * Mostrar formulario de edición.
-     */
-    public function edit(Product $product): Response
-    {
-        return Inertia::render('Products/Edit', [
-            'product' => $product,
-        ]);
+        return response()->json(['message' => 'Producto creado correctamente.']);
     }
 
     /**
@@ -73,7 +45,7 @@ class ProductController extends Controller
 
         $product->update($data);
 
-        return redirect()->route('products.index')->with('success', 'Producto actualizado correctamente.');
+        return response()->json(['message' => 'Producto actualizado correctamente.']);
     }
 
     /**
